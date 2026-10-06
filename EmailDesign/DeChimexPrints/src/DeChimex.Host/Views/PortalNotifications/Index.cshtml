@@ -1,0 +1,73 @@
+@model IReadOnlyList<DeChimex.Contracts.Notifications.NotificationDto>
+@{
+    Layout = "_PortalLayout";
+    ViewData["Title"] = "Notifications";
+    ViewData["ActiveNav"] = "notifications";
+    var unreadCount = (int)(ViewBag.UnreadCount ?? 0);
+    var returnToHistory = Url.Action("Index") ?? "/portal/notifications";
+}
+
+<div class="cs-wrap">
+    <div class="cs-page-head cs-row-between">
+        <div>
+            <h1>Notifications</h1>
+            <p class="cs-muted">Your recent order and account updates stay here after you read them.</p>
+        </div>
+        @if (unreadCount > 0)
+        {
+            <form asp-action="MarkAllRead" method="post" style="margin:0">
+                <button type="submit" class="btn btn-outline btn-sm" aria-label="Mark all notifications as read">Mark all as read (@unreadCount)</button>
+            </form>
+        }
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="cs-card">
+            <div class="portal-notif-empty">No notifications yet.</div>
+        </div>
+    }
+    else
+    {
+        <div class="cs-card portal-notif-history" aria-label="Notification history">
+            @foreach (var n in Model)
+            {
+                <article class="portal-notif-history-row @(n.IsRead ? "is-read" : "is-unread")" data-notification-id="@n.Id" data-is-read="@n.IsRead.ToString().ToLowerInvariant()">
+                    <div class="portal-notif-history-copy">
+                        <div class="portal-notif-history-title">
+                            @if (!n.IsRead) { <span class="portal-notif-dot" aria-label="Unread"></span> }
+                            <span>@n.Title</span>
+                            <span class="portal-notif-state">@(n.IsRead ? "Read" : "Unread")</span>
+                        </div>
+                        <p class="portal-notif-msg">@n.Message</p>
+                        <time class="portal-notif-when" datetime="@n.CreatedDateUtc.ToString("O")">@n.CreatedDateUtc.ToLocalTime().ToString("d MMM yyyy HH:mm")</time>
+                    </div>
+                    <div class="portal-notif-history-action">
+                        @if (!n.IsRead)
+                        {
+                            @if (!string.IsNullOrWhiteSpace(n.Link))
+                            {
+                                <a class="btn btn-outline btn-sm"
+                                   href="@n.Link"
+                                   data-notification-open-id="@n.Id"
+                                   data-notification-is-read="false">Open</a>
+                            }
+                            <form asp-action="MarkRead" asp-route-id="@n.Id" method="post" style="margin:0">
+                                <input type="hidden" name="returnUrl" value="@returnToHistory" />
+                                <button type="submit" class="btn btn-ghost btn-sm">Mark read</button>
+                            </form>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(n.Link))
+                        {
+                            <a class="btn btn-ghost btn-sm"
+                               href="@n.Link"
+                               data-notification-open-id="@n.Id"
+                               data-notification-is-read="true">Open</a>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    }
+    <div style="margin-top:14px"><a class="cs-link cs-small" href="/portal">← My account</a></div>
+</div>

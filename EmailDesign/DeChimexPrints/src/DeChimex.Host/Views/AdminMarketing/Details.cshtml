@@ -1,0 +1,194 @@
+@model DeChimex.Contracts.Marketing.MarketingBroadcastDetailsDto
+@{
+    Layout = "_AdminLayout";
+    var campaign = Model.Broadcast;
+    var canManage = User.HasClaim("permission", "marketing.manage");
+    var isDraft = campaign.Status == "Draft";
+    var isScheduled = campaign.Status == "Scheduled";
+    var isCompleted = campaign.Status == "Completed";
+    var pending = campaign.RecipientCount - campaign.SentCount - campaign.FailedCount;
+    var audienceLabel = campaign.AudienceSegment switch
+    {
+        "PreviousPurchasers" => "Previous purchasers",
+        "NoPurchaseInLast90Days" => "No paid purchase in the last 90 days",
+        _ => "All subscribed customers"
+    };
+}
+<div class="toolbar" style="margin-bottom:16px">
+    <a class="btn btn-outline btn-sm" asp-action="Index" aria-label="Back to campaigns">← Campaigns</a>
+    <span style="flex:1"></span>
+    @if (canManage && isDraft && !string.IsNullOrWhiteSpace(Model.ContentJson))
+    {
+        <a class="btn btn-outline btn-sm" asp-action="Edit" asp-route-id="@campaign.Id">Edit draft</a>
+    }
+    @if (canManage && isDraft)
+    {
+        <a class="btn btn-primary btn-sm" asp-action="Confirm" asp-route-id="@campaign.Id">Review send</a>
+    }
+    @if (canManage && isCompleted && campaign.FailedCount > 0)
+    {
+        <form method="post" asp-action="Retry" asp-route-id="@campaign.Id" style="display:inline">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-outline btn-sm">Retry @campaign.FailedCount failed</button>
+        </form>
+    }
+    <a class="btn btn-ghost btn-sm" asp-action="Preview" asp-route-id="@campaign.Id" target="_blank">Open email preview</a>
+</div>
+
+<div class="g g-12">
+    <div class="col-8">
+        <div class="card">
+            <div class="card-head">
+                <div>
+                    <h3 style="font-size:16px;font-weight:800">@campaign.Name</h3>
+                    <p class="text-muted" style="font-size:13px;margin-top:3px">Subject: @campaign.Subject</p>
+                    <p class="text-muted" style="font-size:12px;margin-top:3px">
+                        Created @campaign.CreatedDateUtc.ToLocalTime().ToString("d MMM yyyy HH:mm") by @(campaign.CreatedBy ?? "admin")
+                        @if (campaign.ScheduledAtUtc is { } scheduled) { <span> · scheduled @scheduled.ToLocalTime().ToString("d MMM yyyy HH:mm")</span> }
+                        @if (campaign.QueuedAtUtc is { } queued) { <span> · queued @queued.ToLocalTime().ToString("d MMM yyyy HH:mm")</span> }
+                        @if (campaign.CompletedAtUtc is { } completed) { <span> · completed @completed.ToLocalTime().ToString("d MMM yyyy HH:mm")</span> }
+                    </p>
+                </div>
+                <div>
+                    @switch (campaign.Status)
+                    {
+                        case "Draft": <span class="badge badge-neutral">Draft</span> break;
+                        case "Scheduled": <span class="badge badge-warning">Scheduled</span> break;
+                        case "Queued": <span class="badge badge-warning">Queued</span> break;
+                        case "Sending": <span class="badge badge-warning">Sending</span> break;
+                        case "Cancelled": <span class="badge badge-neutral">Cancelled</span> break;
+                        default:
+                            if (campaign.FailedCount > 0) { <span class="badge badge-warning">Completed with failures</span> }
+                            else { <span class="badge badge-success">Completed</span> }
+                            break;
+                    }
+                </div>
+            </div>
+            <div class="card-body" style="font-size:13px">
+                <div class="campaign-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
+                    <div><span class="text-muted">Audience</span><div class="font-semibold">@audienceLabel</div></div>
+                    <div><span class="text-muted">Sender name</span><div class="font-semibold">@campaign.SenderName</div></div>
+                    @if (!string.IsNullOrWhiteSpace(campaign.ReplyToEmail)) { <div><span class="text-muted">Reply-to</span><div class="font-semibold">@campaign.ReplyToEmail</div></div> }
+                    @if (!string.IsNullOrWhiteSpace(Model.Preheader)) { <div><span class="text-muted">Inbox preview</span><div class="font-semibold">@Model.Preheader</div></div> }
+                </div>
+                @if (isDraft)
+                {
+                    <p class="text-muted" style="margin-bottom:10px">Current audience estimate: <b>@ViewBag.EligibleRecipientCount</b>. The exact count is checked again on the confirmation screen.</p>
+                }
+                <iframe srcdoc="@ViewBag.RenderedPreviewHtml" title="Rendered campaign email" sandbox loading="lazy"
+                        style="width:100%;height:490px;border:1px solid var(--n-200);border-radius:10px;background:#fff"></iframe>
+            </div>
+        </div>
+
+        @if (canManage && isDraft)
+        {
+            <div class="card" style="margin-top:14px">
+                <div class="card-head"><h3 style="font-size:14px;font-weight:800">Send a test</h3></div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:13px;margin-bottom:12px">A test goes only to the address you enter. It does not add anyone to the campaign audience.</p>
+                    <form method="post" asp-action="Test" asp-route-id="@campaign.Id" class="flex items-end gap-2" style="flex-wrap:wrap">
+                        @Html.AntiForgeryToken()
+                        <div style="flex:1 1 260px">
+                            <label class="label" for="testEmail">Test email address</label>
+                            <input class="input" id="testEmail" name="TestEmail" type="email" maxlength="256" required placeholder="you@example.com" autocomplete="email" />
+                        </div>
+                        <button type="submit" class="btn btn-outline">Send test</button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        @if (canManage && isScheduled)
+        {
+            <div class="card" style="margin-top:14px">
+                <div class="card-head"><h3 style="font-size:14px;font-weight:800">Scheduled send</h3></div>
+                <div class="card-body">
+                    <p class="text-muted" style="font-size:13px;margin-bottom:12px">The saved audience is rechecked for consent at delivery. You can change the send time or cancel before the worker starts.</p>
+                    <form method="post" asp-action="Reschedule" asp-route-id="@campaign.Id" id="rescheduleForm" class="flex items-end gap-2" style="flex-wrap:wrap;margin-bottom:12px">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="ScheduledAtUtc" id="rescheduleUtc" />
+                        <div style="flex:1 1 250px;max-width:330px">
+                            <label class="label" for="rescheduleLocal">New send time in your browser's local time</label>
+                            <input class="input" type="datetime-local" step="1" id="rescheduleLocal" required />
+                        </div>
+                        <button type="submit" class="btn btn-outline">Update time</button>
+                    </form>
+                    <form method="post" asp-action="Cancel" asp-route-id="@campaign.Id" onsubmit="return confirm('Cancel this scheduled campaign? No customer emails will be sent.');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-ghost">Cancel scheduled campaign</button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-4">
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-head"><h3 style="font-size:14px;font-weight:800">Send outcomes</h3></div>
+            <div class="card-body" style="font-size:14px">
+                <div class="flex justify-between mb-2"><span class="text-muted">Recipient snapshot</span><b>@campaign.RecipientCount</b></div>
+                <div class="flex justify-between mb-2"><span class="text-muted">Accepted by email service</span><b style="color:#059669">@campaign.SentCount</b></div>
+                <div class="flex justify-between mb-2"><span class="text-muted">Failed</span><b style="color:@(campaign.FailedCount > 0 ? "#DC2626" : "inherit")">@campaign.FailedCount</b></div>
+                <div class="flex justify-between"><span class="text-muted">Awaiting an outcome</span><b>@pending</b></div>
+                <p class="text-muted" style="font-size:12px;margin-top:12px">Accepted means the email service accepted the send request. Delivery, opens, and clicks are not reported by the current integration.</p>
+                @if (campaign.Status is "Queued" or "Sending")
+                {
+                    <p class="text-muted" style="font-size:12px;margin-top:10px">The background worker sends in batches. Refresh this page to see updated outcomes.</p>
+                }
+                @if (campaign.Status == "Draft")
+                {
+                    <p class="text-muted" style="font-size:12px;margin-top:10px">No customer emails are sent until you confirm the audience and choose a send time.</p>
+                }
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-head"><h3 style="font-size:14px;font-weight:800">Recipients</h3></div>
+            <div class="card-body" style="max-height:420px;overflow:auto;padding:0">
+                <table class="table">
+                    <thead><tr><th>Email</th><th>Status</th></tr></thead>
+                    <tbody>
+                    @foreach (var recipient in Model.Recipients)
+                    {
+                        <tr>
+                            <td style="font-size:13px">@recipient.Email</td>
+                            <td>
+                                @switch (recipient.Status)
+                                {
+                                    case "Sent": <span class="badge badge-success">Accepted</span> break;
+                                    case "Failed": <span class="badge badge-error" title="@recipient.FailureReason">Failed</span> break;
+                                    default: <span class="badge badge-neutral">Pending</span> break;
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Recipients.Count == 0)
+                    {
+                        <tr><td colspan="2" class="table-empty text-muted" style="padding:18px">Recipients are added when the campaign is confirmed.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+@if (isScheduled && canManage && campaign.ScheduledAtUtc is { } scheduledAt)
+{
+<script>
+(() => {
+    const form = document.getElementById('rescheduleForm');
+    const local = document.getElementById('rescheduleLocal');
+    const utc = document.getElementById('rescheduleUtc');
+    const scheduled = new Date('@scheduledAt.ToUniversalTime().ToString("O")');
+    const pad = n => String(n).padStart(2, '0');
+    const value = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    local.value = value(scheduled);
+    local.min = value(new Date(Date.now() + 60000));
+    form.addEventListener('submit', e => {
+        const chosen = new Date(local.value);
+        if (!Number.isFinite(chosen.getTime()) || chosen.getTime() <= Date.now()) { e.preventDefault(); alert('Choose a future send time.'); return; }
+        utc.value = chosen.toISOString();
+    });
+})();
+</script>
+}
+}

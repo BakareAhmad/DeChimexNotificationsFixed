@@ -1,0 +1,91 @@
+@model DeChimex.Host.Models.Admin.MarketingConfirmFormViewModel
+@{
+    Layout = "_AdminLayout";
+    var campaign = (DeChimex.Contracts.Marketing.MarketingBroadcastDto)ViewBag.Campaign;
+    var audience = (string)ViewBag.AudienceLabel;
+}
+<div class="toolbar" style="margin-bottom:16px">
+    <a class="btn btn-outline btn-sm" asp-action="Details" asp-route-id="@campaign.Id">Back to campaign</a>
+</div>
+<div class="g g-12">
+    <div class="col-7">
+        <div class="card">
+            <div class="card-head"><div><h3 style="font-size:16px;font-weight:800">Confirm campaign send</h3><p class="text-muted" style="font-size:13px;margin-top:3px">Check the content and audience before sending.</p></div></div>
+            <div class="card-body">
+                <form method="post" asp-action="Confirm" asp-route-id="@campaign.Id" id="confirmCampaignForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="BroadcastId" />
+                    <input type="hidden" asp-for="ExpectedRecipientCount" />
+                    <input type="hidden" asp-for="ScheduledAtUtc" id="scheduledAtUtc" />
+                    <div class="field" style="margin-bottom:16px">
+                        <label class="label">When should it send?</label>
+                        <label class="flex items-center gap-2" style="margin:8px 0"><input type="radio" name="SendMode" value="now" checked /> <span>Send as soon as the worker is ready</span></label>
+                        <label class="flex items-center gap-2" style="margin:8px 0"><input type="radio" name="SendMode" value="schedule" /> <span>Schedule for a later time</span></label>
+                        <div id="scheduleFields" style="display:none;margin:12px 0 0 24px;max-width:320px">
+                            <label class="label" for="scheduledLocal">Send time in your browser's local time</label>
+                            <input class="input" type="datetime-local" step="1" id="scheduledLocal" />
+                            <div class="text-muted" style="font-size:12px;margin-top:4px">The campaign will wait until this time, then enter the existing send queue.</div>
+                        </div>
+                    </div>
+                    <label class="flex items-start gap-2" style="margin:18px 0 14px">
+                        <input type="checkbox" name="Confirm" value="true" required style="margin-top:3px" />
+                        <span>I reviewed the campaign and confirm it may be sent to <b>@Model.ExpectedRecipientCount</b> eligible customer(s).</span>
+                    </label>
+                    <div class="flex items-center gap-2">
+                        <button type="submit" class="btn btn-primary" id="confirmSendButton">Confirm and send</button>
+                        <a class="btn btn-ghost" asp-action="Details" asp-route-id="@campaign.Id">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-5">
+        <div class="card">
+            <div class="card-head"><h3 style="font-size:14px;font-weight:800">Campaign summary</h3></div>
+            <div class="card-body" style="font-size:14px">
+                <div class="flex justify-between mb-2"><span class="text-muted">Campaign</span><b>@campaign.Name</b></div>
+                <div class="flex justify-between mb-2"><span class="text-muted">Subject</span><b>@campaign.Subject</b></div>
+                <div class="flex justify-between mb-2"><span class="text-muted">Audience</span><b>@audience</b></div>
+                <div class="flex justify-between mb-2"><span class="text-muted">Eligible now</span><b id="eligibleCount">@Model.ExpectedRecipientCount</b></div>
+                <div class="flex justify-between mb-2"><span class="text-muted">Sender</span><b>@campaign.SenderName</b></div>
+                @if (!string.IsNullOrWhiteSpace(campaign.ReplyToEmail)) { <div class="flex justify-between mb-2"><span class="text-muted">Replies</span><b>@campaign.ReplyToEmail</b></div> }
+                <p class="text-muted" style="font-size:12px;margin-top:14px">Opt-outs are checked again immediately before each customer email is sent. The count may change if the audience changes before confirmation.</p>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+<script>
+(() => {
+    const form = document.getElementById('confirmCampaignForm');
+    const scheduleFields = document.getElementById('scheduleFields');
+    const localInput = document.getElementById('scheduledLocal');
+    const utcInput = document.getElementById('scheduledAtUtc');
+    const button = document.getElementById('confirmSendButton');
+    const radios = [...form.querySelectorAll('input[name="SendMode"]')];
+    const pad = n => String(n).padStart(2, '0');
+    const localValue = date => `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    const isSchedule = () => radios.find(r => r.checked)?.value === 'schedule';
+    function updateMode() {
+        const scheduled = isSchedule();
+        scheduleFields.style.display = scheduled ? '' : 'none';
+        button.textContent = scheduled ? 'Confirm schedule' : 'Confirm and send';
+        localInput.required = scheduled;
+    }
+    radios.forEach(r => r.addEventListener('change', updateMode));
+    localInput.min = localValue(new Date(Date.now() + 60000));
+    form.addEventListener('submit', event => {
+        if (!isSchedule()) { utcInput.value = ''; return; }
+        if (!localInput.value) { event.preventDefault(); localInput.focus(); return; }
+        const chosen = new Date(localInput.value);
+        if (!Number.isFinite(chosen.getTime()) || chosen.getTime() <= Date.now()) {
+            event.preventDefault();
+            alert('Choose a future send time.');
+            return;
+        }
+        utcInput.value = chosen.toISOString();
+    });
+    updateMode();
+})();
+</script>
+}

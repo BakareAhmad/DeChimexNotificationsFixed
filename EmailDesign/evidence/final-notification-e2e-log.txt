@@ -1,0 +1,64 @@
+ok 01 - owner logged in
+ok 02 - customizable product created
+ok 03 - register fx -> verify page
+ok 04 - verification token captured for fx
+ok 05 - brevo api-key header present (value redacted in capture)
+ok 06 - customer fx signed in
+ok 07 - customer live hub listener connected
+ok 08 - owner live hub listener connected
+ok 09 - custom order request submitted
+ok 10 - staff still receive staff notifications LIVE (New order request)
+ok 11 - server card: 'Waiting for the team to review'
+ok 12 - server waiting line carries .design-review-waiting
+shot 01-customer-design-review-waiting-server-card.png
+ok 13 - live card (other tab): same wording
+ok 14 - old live wording 'Awaiting staff review' is gone
+shot 02-customer-second-tab-live-card-same-wording.png
+ok 15 - approval flips the customer's SERVER card live
+ok 16 - waiting line removed live from the server-rendered card
+shot 03-customer-server-card-approved-live-waiting-line-removed.png
+ok 17 - customer receives their own notification LIVE
+ok 18 - staff tab 2: server-rendered pending v2 has Approve/Reject (.design-review-actions)
+shot 04-staff-second-tab-pending-v2-server-card-with-actions.png
+ok 19 - validation: reject requires a reason
+shot 05-reject-requires-reason-validation.png
+ok 20 - staff tab 2: stale Approve/Reject removed live after the rejection
+ok 21 - staff tab 2: no duplicate reason line
+shot 06-staff-second-tab-actions-removed-live.png
+ok 22 - customer live card: 'Changes requested:' + reason
+ok 23 - customer server card after reload: same 'Changes requested:' label
+shot 07-customer-rejection-same-label-after-reload.png
+customer live pushes: ['Design review approved', 'Design review rejected'] | staff live pushes: ['New order request', 'Design review uploaded', 'Design review uploaded']
+ok 24 - customer live pushes contain NO staff notifications
+ok 25 - customer live pushes = only their own
+ok 26 - staff live pushes include the staff notifications
+ok 27 - customer bell feed: only own notifications
+ok 28 - new real-time customer notifications remain unread in persisted feed
+ok 29 - unread count equals the persisted unread notification rows
+ok 30 - bell dropdown shows the customer's notifications, none of staff
+ok 31 - opening the dropdown is read-only
+ok 32 - dropdown items still carry unread state after opening
+shot 08-customer-bell-read-only-unread.png
+ok 33 - selecting an unread notification follows its existing deep link
+ok 34 - selecting one notification decrements unread count by exactly one
+ok 35 - selected notification persists as read while the other stays unread
+shot 09-customer-notification-individual-read-and-deep-link.png
+ok 36 - already-read notification is styled as read
+ok 37 - reopening an already-read item does not post another read update or change count
+shot 10-customer-notification-already-read.png
+ok 38 - dropdown Mark all as read succeeds explicitly
+ok 39 - mark-all clears the current unread count
+ok 40 - mark-all keeps the notifications in history as read
+ok 41 - full notification history retains read notifications after mark-all
+ok 42 - opening full history does not alter read state
+shot 11-customer-notification-full-history-after-mark-all.png
+ok 43 - PWA click posts the persisted notification ID and remains idempotent
+ok 44 - PWA click preserves the original deep link and cleans the read marker
+shot 12-customer-notification-pwa-click-deep-link.png
+ok 45 - staff notifications page still lists staff notifications
+ok 46 - staff Open persists one unread row before following its deep link
+ok 47 - staff opening a notification decrements only one unread count
+ok 48 - staff read notification remains in history
+shot 13-staff-notifications-list-unchanged.png
+
+RESULT: 48 passed, 0 failed (TAG=notifrunfi)

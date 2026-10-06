@@ -1,0 +1,333 @@
+@model DeChimex.Host.Models.Admin.MarketingBroadcastFormViewModel
+@{
+    Layout = "_AdminLayout";
+    var editId = ViewBag.EditId as Guid?;
+    var isEdit = editId.HasValue;
+    var formAction = isEdit ? Url.Action("Edit", new { id = editId }) : Url.Action("Compose");
+    var hasEditorErrors = ViewData.ModelState.Values.Any(entry => entry.Errors.Count > 0);
+}
+@section Styles {
+<style>
+    .campaign-studio{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:16px;align-items:start}
+    .campaign-stack{display:grid;gap:14px;min-width:0}
+    .campaign-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .campaign-grid .span-2{grid-column:1/-1}
+    .campaign-block{border:1px solid var(--border);border-radius:12px;background:var(--n-0);padding:12px;margin:10px 0}
+    .campaign-block-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .campaign-block-title{font-size:13px;font-weight:800;flex:1}
+    .campaign-block-tools{display:flex;gap:5px}
+    .campaign-block-tools button{min-width:32px;padding:5px 8px}
+    .campaign-add-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+    .campaign-add-row .btn{font-size:12px}
+    .campaign-preview-wrap{position:sticky;top:12px;min-width:0}
+    .campaign-preview-frame{display:block;width:100%;height:620px;border:1px solid var(--border);border-radius:12px;background:#f7f6f2;transition:width .2s ease;margin:0 auto}
+    .campaign-preview-frame.is-mobile{width:min(375px,100%);height:690px}
+    .campaign-preview-tools{display:flex;align-items:center;gap:6px}
+    .campaign-preview-tools .active{border-color:var(--primary);color:var(--primary);background:var(--primary-50)}
+    .campaign-helper{font-size:12px;color:var(--n-500);line-height:1.5;margin-top:5px}
+    .campaign-field{min-width:0}
+    .campaign-editor-errors{margin-bottom:12px}
+    .campaign-status{font-size:12px;color:var(--n-500);min-height:18px}
+    .campaign-template-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+    .campaign-template-row .campaign-field{flex:1 1 220px}
+    @@media(max-width:1050px){.campaign-studio{grid-template-columns:1fr}.campaign-preview-wrap{position:static}.campaign-preview-frame{height:560px}}
+    @@media(max-width:640px){.campaign-grid{grid-template-columns:1fr}.campaign-grid .span-2{grid-column:auto}.campaign-preview-frame{height:500px}.campaign-preview-frame.is-mobile{height:620px}}
+</style>
+}
+
+<div class="toolbar" style="margin-bottom:14px">
+    <a class="btn btn-outline btn-sm" asp-action="Index">← Campaigns</a>
+    <span style="flex:1"></span>
+    <span class="badge badge-neutral">Draft editor</span>
+</div>
+
+<div class="campaign-studio">
+    <div class="campaign-stack">
+        <form method="post" action="@formAction" id="campaignForm">
+            @Html.AntiForgeryToken()
+            @if (isEdit) { <input type="hidden" name="id" value="@editId" /> }
+            <input type="hidden" asp-for="BlocksJson" id="BlocksJson" />
+            <div asp-validation-summary="All" class="alert alert-error campaign-editor-errors" role="alert" style="@(hasEditorErrors ? null : "display:none")"></div>
+
+            <div class="card">
+                <div class="card-head">
+                    <div><h3 style="font-size:15px;font-weight:800">Campaign details</h3><p class="text-muted" style="font-size:12px;margin-top:3px">Set the audience and the information customers see in their inbox.</p></div>
+                </div>
+                <div class="card-body">
+                    <div class="campaign-grid">
+                        <div class="campaign-field">
+                            <label class="label" asp-for="Name">Campaign name <span class="req">*</span></label>
+                            <input class="input" asp-for="Name" maxlength="120" placeholder="Spring print collection" autocomplete="off" />
+                            <span asp-validation-for="Name" class="field-error"></span>
+                        </div>
+                        <div class="campaign-field">
+                            <label class="label" asp-for="AudienceSegment">Customer audience</label>
+                            <select class="select" asp-for="AudienceSegment" id="AudienceSegment">
+                                <option value="0">All subscribed customers</option>
+                                <option value="1">Previous purchasers</option>
+                                <option value="2">No paid purchase in the last 90 days</option>
+                            </select>
+                            <div class="campaign-helper"><b id="audienceCount">@ViewBag.EligibleRecipients</b> customers currently match. Unsubscribed customers are excluded.</div>
+                        </div>
+                        <div class="campaign-field span-2">
+                            <label class="label" asp-for="Subject">Email subject <span class="req">*</span></label>
+                            <input class="input" asp-for="Subject" maxlength="200" placeholder="A fresh idea for your next print project" autocomplete="off" />
+                            <span asp-validation-for="Subject" class="field-error"></span>
+                        </div>
+                        <div class="campaign-field span-2">
+                            <label class="label" asp-for="Preheader">Inbox preview line</label>
+                            <input class="input" asp-for="Preheader" maxlength="200" placeholder="Add one short detail that appears beside the subject" autocomplete="off" />
+                            <span asp-validation-for="Preheader" class="field-error"></span>
+                        </div>
+                        <div class="campaign-field">
+                            <label class="label" asp-for="SenderName">Sender name <span class="req">*</span></label>
+                            <input class="input" asp-for="SenderName" maxlength="80" autocomplete="organization" />
+                            <span asp-validation-for="SenderName" class="field-error"></span>
+                        </div>
+                        <div class="campaign-field">
+                            <label class="label" asp-for="ReplyToEmail">Reply-to email</label>
+                            <input class="input" asp-for="ReplyToEmail" type="email" maxlength="256" placeholder="hello@dechimexprinthub.com" autocomplete="email" />
+                            <span asp-validation-for="ReplyToEmail" class="field-error"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:14px">
+                <div class="card-head">
+                    <div><h3 style="font-size:15px;font-weight:800">Email content</h3><p class="text-muted" style="font-size:12px;margin-top:3px">Add and reorder a few simple blocks. Text is personalized safely when a first name is available.</p></div>
+                </div>
+                <div class="card-body">
+                    <div class="campaign-template-row">
+                        <div class="campaign-field">
+                            <label class="label" for="templatePicker">Start with a template</label>
+                            <select class="select" id="templatePicker">
+                                <option value="announcement">Shop update</option>
+                                <option value="launch">Product announcement</option>
+                                <option value="offer">Offer details</option>
+                                <option value="seasonal">Seasonal note</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline" type="button" id="applyTemplate">Use template</button>
+                    </div>
+                    <div class="campaign-helper">Templates are starting points. Replace the copy and links with details you have confirmed.</div>
+                    <div style="margin-top:14px">
+                        <div class="flex items-center justify-between gap-2" style="flex-wrap:wrap">
+                            <b style="font-size:13px">Content blocks</b>
+                            <span class="campaign-helper" style="margin:0">Use only secure HTTPS links and images.</span>
+                        </div>
+                        <div id="blocksEditor" aria-live="polite"></div>
+                        <div class="campaign-add-row" aria-label="Add content block">
+                            <button class="btn btn-outline btn-sm" type="button" data-add="heading">+ Heading</button>
+                            <button class="btn btn-outline btn-sm" type="button" data-add="paragraph">+ Text</button>
+                            <button class="btn btn-outline btn-sm" type="button" data-add="image">+ Image</button>
+                            <button class="btn btn-outline btn-sm" type="button" data-add="button">+ Button</button>
+                            <button class="btn btn-outline btn-sm" type="button" data-add="divider">+ Divider</button>
+                        </div>
+                        <div class="campaign-helper" style="margin-top:13px">Personalization token: <code>{{FirstName}}</code>. If a name is unavailable, the email uses “there”.</div>
+                        <span asp-validation-for="BlocksJson" class="field-error"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2" style="margin-top:14px;flex-wrap:wrap">
+                <button type="submit" class="btn btn-primary" id="saveCampaignButton">Save draft</button>
+                <a class="btn btn-ghost" asp-action="Index">Cancel</a>
+                <span class="campaign-status" id="saveHint" role="status"></span>
+            </div>
+        </form>
+    </div>
+
+    <aside class="campaign-preview-wrap">
+        <div class="card">
+            <div class="card-head">
+                <div><h3 style="font-size:15px;font-weight:800">Live email preview</h3><p class="campaign-status" id="previewStatus" role="status">Preview uses the delivery email renderer.</p></div>
+                <div class="campaign-preview-tools" role="group" aria-label="Preview size">
+                    <button type="button" class="btn btn-outline btn-sm active" id="desktopPreview">Desktop</button>
+                    <button type="button" class="btn btn-outline btn-sm" id="mobilePreview">Mobile</button>
+                </div>
+            </div>
+            <div class="card-body" style="padding:12px">
+                <iframe id="previewFrame" class="campaign-preview-frame" title="Rendered marketing email preview" sandbox></iframe>
+            </div>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+    const blocksInput = document.getElementById('BlocksJson');
+    const blocksRoot = document.getElementById('blocksEditor');
+    const form = document.getElementById('campaignForm');
+    const frame = document.getElementById('previewFrame');
+    const previewStatus = document.getElementById('previewStatus');
+    const subjectInput = document.getElementById('@Html.IdFor(m => m.Subject)');
+    const preheaderInput = document.getElementById('@Html.IdFor(m => m.Preheader)');
+    const audienceInput = document.getElementById('AudienceSegment');
+    const audienceCount = document.getElementById('audienceCount');
+    const templatePicker = document.getElementById('templatePicker');
+    const templates = {
+        announcement: [
+            { type: 'heading', text: 'A note from DE-CHIMEX' },
+            { type: 'paragraph', text: 'Hi {{FirstName}}, here is a short update from our print hub. Replace this note with the specific news you want your customers to know.' },
+            { type: 'button', text: 'Explore the shop', url: 'https://dechimexprinthub.com/shop' }
+        ],
+        launch: [
+            { type: 'heading', text: 'New from DE-CHIMEX' },
+            { type: 'paragraph', text: 'Hi {{FirstName}}, take a look at our latest additions and find an option that fits your next print project.' },
+            { type: 'button', text: 'View the shop', url: 'https://dechimexprinthub.com/shop' }
+        ],
+        offer: [
+            { type: 'heading', text: 'An offer for your next project' },
+            { type: 'paragraph', text: 'Hi {{FirstName}}, add the confirmed offer, dates, and any terms here before sending.' },
+            { type: 'button', text: 'See the offer', url: 'https://dechimexprinthub.com/shop' }
+        ],
+        seasonal: [
+            { type: 'heading', text: 'Make this season yours' },
+            { type: 'paragraph', text: 'Hi {{FirstName}}, share the products or services you would like customers to consider this season.' },
+            { type: 'divider' },
+            { type: 'button', text: 'Browse the shop', url: 'https://dechimexprinthub.com/shop' }
+        ]
+    };
+    let blocks = [];
+    let activeTextArea = null;
+    let previewTimer = null;
+    let previewSequence = 0;
+
+    function parseBlocks(value) {
+        try {
+            const parsed = JSON.parse(value || '{}');
+            return Array.isArray(parsed.blocks) ? parsed.blocks.map(b => ({
+                type: String(b.type || ''), text: String(b.text || ''), url: String(b.url || ''), alt: String(b.alt || '')
+            })) : [];
+        } catch { return []; }
+    }
+    function syncBlocks() {
+        blocksInput.value = JSON.stringify({ blocks });
+        document.getElementById('saveHint').textContent = blocks.length ? `${blocks.length} block${blocks.length === 1 ? '' : 's'} ready` : 'Add at least one block to continue';
+        schedulePreview();
+    }
+    function addLabel(parent, text, forId) {
+        const label = document.createElement('label');
+        label.className = 'label'; label.textContent = text; label.htmlFor = forId; parent.appendChild(label);
+    }
+    function addField(card, labelText, value, key, type = 'input') {
+        const wrap = document.createElement('div'); wrap.className = 'campaign-field';
+        const input = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+        input.id = `campaign-block-${card.dataset.index}-${key}`;
+        input.setAttribute('aria-label', labelText);
+        addLabel(wrap, labelText, input.id);
+        input.className = 'input';
+        if (type === 'textarea') { input.rows = 3; input.style.resize = 'vertical'; }
+        else if (key === 'url') input.type = 'url';
+        input.value = value || '';
+        input.autocomplete = 'off';
+        input.addEventListener('focus', () => { if (key === 'text' || key === 'alt') activeTextArea = input; });
+        input.addEventListener('input', () => { blocks[Number(card.dataset.index)][key] = input.value; syncBlocks(); });
+        wrap.appendChild(input); card.querySelector('.campaign-block-fields').appendChild(wrap);
+    }
+    function renderBlocks() {
+        blocksRoot.replaceChildren();
+        if (!blocks.length) {
+            const empty = document.createElement('p'); empty.className = 'text-muted';
+            empty.style.cssText = 'font-size:13px;padding:12px 0';
+            empty.textContent = 'No blocks yet. Add a heading or text block to begin.';
+            blocksRoot.appendChild(empty); syncBlocks(); return;
+        }
+        blocks.forEach((block, index) => {
+            const card = document.createElement('section');
+            card.className = 'campaign-block'; card.dataset.index = String(index);
+            const head = document.createElement('div'); head.className = 'campaign-block-head';
+            const title = document.createElement('div'); title.className = 'campaign-block-title';
+            const names = { heading: 'Heading', paragraph: 'Text', image: 'Image', button: 'Button', divider: 'Divider' };
+            title.textContent = `${String(index + 1).padStart(2, '0')}  ${names[block.type] || 'Block'}`;
+            head.appendChild(title);
+            const tools = document.createElement('div'); tools.className = 'campaign-block-tools';
+            const moveUp = document.createElement('button'); moveUp.type = 'button'; moveUp.className = 'btn btn-ghost btn-sm'; moveUp.textContent = '↑'; moveUp.setAttribute('aria-label', `Move block ${index + 1} up`); moveUp.disabled = index === 0;
+            moveUp.addEventListener('click', () => { [blocks[index - 1], blocks[index]] = [blocks[index], blocks[index - 1]]; renderBlocks(); });
+            const moveDown = document.createElement('button'); moveDown.type = 'button'; moveDown.className = 'btn btn-ghost btn-sm'; moveDown.textContent = '↓'; moveDown.setAttribute('aria-label', `Move block ${index + 1} down`); moveDown.disabled = index === blocks.length - 1;
+            moveDown.addEventListener('click', () => { [blocks[index + 1], blocks[index]] = [blocks[index], blocks[index + 1]]; renderBlocks(); });
+            const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'btn btn-ghost btn-sm'; remove.textContent = 'Remove'; remove.setAttribute('aria-label', `Remove block ${index + 1}`);
+            remove.addEventListener('click', () => { blocks.splice(index, 1); renderBlocks(); });
+            tools.append(moveUp, moveDown, remove); head.appendChild(tools); card.appendChild(head);
+            const fields = document.createElement('div'); fields.className = 'campaign-grid campaign-block-fields'; card.appendChild(fields);
+            if (block.type === 'heading') addField(card, 'Heading text', block.text, 'text', 'textarea');
+            if (block.type === 'paragraph') addField(card, 'Paragraph', block.text, 'text', 'textarea');
+            if (block.type === 'button') { addField(card, 'Button label', block.text, 'text'); addField(card, 'Secure HTTPS link', block.url, 'url'); }
+            if (block.type === 'image') { addField(card, 'Image HTTPS address', block.url, 'url'); addField(card, 'Image description', block.alt, 'alt', 'textarea'); }
+            if (block.type === 'divider') { const hint = document.createElement('div'); hint.className = 'campaign-helper span-2'; hint.textContent = 'A thin divider separates nearby content blocks.'; fields.appendChild(hint); }
+            blocksRoot.appendChild(card);
+        });
+        syncBlocks();
+    }
+    function addBlock(type) {
+        if (blocks.length >= 20) { previewStatus.textContent = 'A campaign can contain up to 20 blocks.'; return; }
+        const starter = { type, text: '', url: '', alt: '' };
+        if (type === 'paragraph') starter.text = 'Write a short, clear message for your customers.';
+        blocks.push(starter); renderBlocks();
+    }
+    document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => addBlock(button.dataset.add)));
+    document.getElementById('applyTemplate').addEventListener('click', () => {
+        if (blocks.length && !window.confirm('Replace the current blocks with this template?')) return;
+        blocks = JSON.parse(JSON.stringify(templates[templatePicker.value] || templates.announcement));
+        renderBlocks();
+    });
+    document.getElementById('desktopPreview').addEventListener('click', event => {
+        frame.classList.remove('is-mobile'); event.currentTarget.classList.add('active'); document.getElementById('mobilePreview').classList.remove('active');
+    });
+    document.getElementById('mobilePreview').addEventListener('click', event => {
+        frame.classList.add('is-mobile'); event.currentTarget.classList.add('active'); document.getElementById('desktopPreview').classList.remove('active');
+    });
+    document.getElementById('campaignForm').addEventListener('input', event => {
+        if (event.target === subjectInput || event.target === preheaderInput) schedulePreview();
+    });
+    form.addEventListener('submit', event => {
+        syncBlocks();
+        if (!blocks.length) { event.preventDefault(); previewStatus.textContent = 'Add at least one content block before saving.'; }
+    });
+
+    async function requestPreview() {
+        const sequence = ++previewSequence;
+        if (!blocks.length) { previewStatus.textContent = 'Add a block to preview the email.'; frame.srcdoc = ''; return; }
+        previewStatus.textContent = 'Rendering the email…';
+        const token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+        const body = new URLSearchParams({
+            __RequestVerificationToken: token,
+            subject: subjectInput.value || 'Campaign preview',
+            preheader: preheaderInput.value || '',
+            blocksJson: JSON.stringify({ blocks })
+        });
+        try {
+            const response = await fetch('@Url.Action("PreviewDraft")', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }, body
+            });
+            if (sequence !== previewSequence) return;
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                previewStatus.textContent = error.message || 'Review the block text and secure links.'; return;
+            }
+            frame.srcdoc = await response.text();
+            previewStatus.textContent = 'Preview uses the delivery email renderer.';
+        } catch {
+            if (sequence === previewSequence) previewStatus.textContent = 'Preview could not be loaded. Check the connection and try again.';
+        }
+    }
+    function schedulePreview() { clearTimeout(previewTimer); previewTimer = setTimeout(requestPreview, 250); }
+    audienceInput.addEventListener('change', async () => {
+        audienceCount.textContent = 'Checking…';
+        try {
+            const response = await fetch(`@Url.Action("AudienceCount")?segment=${encodeURIComponent(audienceInput.value)}`, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error();
+            const data = await response.json(); audienceCount.textContent = String(data.count);
+        } catch { audienceCount.textContent = 'Unavailable'; }
+    });
+    subjectInput.addEventListener('input', schedulePreview);
+    preheaderInput.addEventListener('input', schedulePreview);
+    blocks = parseBlocks(blocksInput.value);
+    if (!blocks.length) { blocks = JSON.parse(JSON.stringify(templates.announcement)); templatePicker.value = 'announcement'; }
+    renderBlocks();
+})();
+</script>
+}

@@ -1,0 +1,7 @@
+PRESERVED ROOT EVIDENCE ASSETS
+
+These files preserve the 99 legacy evidence paths tracked at the upstream repository's root `evidence/` before the notification verification set was captured. They are kept outside root `evidence/` so that root contains only the final successful notification browser run.
+
+The 88 identical legacy artifacts are retained under the matching relative paths in this directory. The 11 original plain-text email previews that differ from the later email-design audit are preserved separately under `legacy-original-email-previews/`.
+
+The final notification run is documented in the root `evidence/README.md`; its numbered screenshots and same-run check log are not mixed into this archive.

@@ -1,0 +1,85 @@
+@model IReadOnlyList<DeChimex.Contracts.Marketing.MarketingBroadcastDto>
+@{
+    Layout = "_AdminLayout";
+    var canManage = User.HasClaim("permission", "marketing.manage");
+    string Audience(string segment) => segment switch
+    {
+        "PreviousPurchasers" => "Previous purchasers",
+        "NoPurchaseInLast90Days" => "No purchase in 90 days",
+        _ => "All subscribed"
+    };
+}
+<div class="toolbar" style="margin-bottom:16px">
+    <div class="text-muted" style="font-size:13px">
+        <b>@ViewBag.EligibleRecipients</b> subscribed customer(s) with an email address.
+        <span class="badge badge-neutral" style="margin-left:6px">Marketing only. Transactional email is separate.</span>
+    </div>
+    <span style="flex:1"></span>
+    @if (canManage)
+    {
+        <a class="btn btn-primary btn-sm" asp-action="Compose">+ New campaign</a>
+    }
+</div>
+
+<div class="table-wrap">
+    <table class="table">
+        <thead><tr><th>Campaign</th><th>Audience</th><th>Status</th><th>Recipients</th><th>Accepted</th><th>Failed</th><th>Created</th><th>Send time</th><th></th></tr></thead>
+        <tbody>
+        @if (Model.Count == 0)
+        {
+            <tr><td colspan="9" class="table-empty">
+                <partial name="_EmptyState" model='new EmptyState(EmptyIcons.Inbox, "No campaigns yet", "Create a draft, choose a subscribed customer audience, then preview and test it before sending.")' />
+            </td></tr>
+        }
+        @foreach (var campaign in Model)
+        {
+            <tr>
+                <td>
+                    <a asp-action="Details" asp-route-id="@campaign.Id" class="font-semibold">@campaign.Name</a>
+                    <div class="text-muted" style="font-size:12px">@campaign.Subject</div>
+                    <div class="text-muted" style="font-size:12px">by @(campaign.CreatedBy ?? "admin")</div>
+                </td>
+                <td class="text-muted">@Audience(campaign.AudienceSegment)</td>
+                <td>
+                    @switch (campaign.Status)
+                    {
+                        case "Draft": <span class="badge badge-neutral">Draft</span> break;
+                        case "Scheduled": <span class="badge badge-warning">Scheduled</span> break;
+                        case "Queued": <span class="badge badge-warning">Queued</span> break;
+                        case "Sending": <span class="badge badge-warning">Sending</span> break;
+                        case "Cancelled": <span class="badge badge-neutral">Cancelled</span> break;
+                        default:
+                            if (campaign.FailedCount > 0) { <span class="badge badge-warning">Completed with failures</span> }
+                            else { <span class="badge badge-success">Completed</span> }
+                            break;
+                    }
+                </td>
+                <td class="text-muted">@campaign.RecipientCount</td>
+                <td class="text-muted">@campaign.SentCount</td>
+                <td>
+                    @if (campaign.FailedCount > 0) { <span class="badge badge-error">@campaign.FailedCount</span> }
+                    else { <span class="text-muted">0</span> }
+                </td>
+                <td class="text-muted">@campaign.CreatedDateUtc.ToLocalTime().ToString("d MMM yyyy HH:mm")</td>
+                <td class="text-muted">
+                    @if (campaign.Status == "Scheduled" && campaign.ScheduledAtUtc is { } scheduled)
+                    { @scheduled.ToLocalTime().ToString("d MMM yyyy HH:mm") }
+                    else if (campaign.QueuedAtUtc is { } queued)
+                    { @queued.ToLocalTime().ToString("d MMM yyyy HH:mm") }
+                    else { <span>-</span> }
+                </td>
+                <td style="text-align:right;white-space:nowrap"><a class="btn btn-ghost btn-sm" asp-action="Details" asp-route-id="@campaign.Id">View</a></td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+@if ((int)ViewBag.TotalPages > 1)
+{
+    <div class="toolbar" style="margin-top:14px">
+        @if (ViewBag.HasPrevious) { <a class="btn btn-outline btn-sm" asp-action="Index" asp-route-page="@(ViewBag.Page - 1)">Previous</a> }
+        <span class="text-muted" style="font-size:13px">Page @ViewBag.Page of @ViewBag.TotalPages</span>
+        @if (ViewBag.HasNext) { <a class="btn btn-outline btn-sm" asp-action="Index" asp-route-page="@(ViewBag.Page + 1)">Next</a> }
+    </div>
+}
